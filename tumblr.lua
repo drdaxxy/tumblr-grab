@@ -22,6 +22,7 @@ local concat = "^https?://".. item_value .. "%.tumblr%.com/?[^/]*/?[^/]*/?[^/]*/
 local video = "^https?://www%.tumblr%.com/video/".. item_value .. "/?.*/?.*/?.*"
 
 local discovered_blogs = {}
+local discovered_media = {}
 
 for ignore in io.open("ignore-list", "r"):lines() do
   downloaded[ignore] = true
@@ -85,8 +86,10 @@ allowed = function(url, parenturl)
     return true
   end
   
-  if string.match(url, video) then
-    return true
+  if string.match(url, video)
+  or string.match(url, "vtt%.tumblr%.com") then
+    discovered_media[url] = true
+    return false
   end
   
   if string.match(url, "^https?://assets%.tumblr%.com")
@@ -94,20 +97,24 @@ allowed = function(url, parenturl)
   or string.match(url, "^https?://[0-9]+%.media%.tumblr%.com") then
     if parenturl ~= nil then
       if string.match(parenturl, concat) then
-        return true
+        discovered_media[url] = true
+        return false
       end
     else
-      return true
+      discovered_media[url] = true
+      return false
     end
   end
   
   if string.match(url, "^https?://[a-z]+%.media%.tumblr%.com") then
     if parenturl ~= nil then
       if string.match(parenturl, "^https?://www%.tumblr%.com") then
-        return true
+        discovered_media[url] = true
+        return false
       end
     else
-      return true
+      discovered_media[url] = true
+      return false
     end
   end
   
@@ -150,13 +157,14 @@ wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_pars
   end
   
   if (downloaded[url] ~= true and addedtolist[url] ~= true)
-  and (allowed(url, parent["url"]) or html == 0) then
+  and (allowed(url, parent["url"]) or (html == 0 and discovered_media[url] ~= true)) then
     addedtolist[url] = true
     return true
   end
   
   return false
 end
+
 
 wget.callbacks.get_urls = function(file, url, is_css, iri)
   local urls = {}
@@ -230,6 +238,14 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 end
 
 wget.callbacks.httploop_result = function(url, err, http_stat)
+
+    local lockfile = io.open("403_lock")
+    if lockfile then
+      lockfile:close()
+      os.execute("sleep 15")
+    end
+
+
   status_code = http_stat["statcode"]
   
   url_count = url_count + 1
@@ -251,7 +267,14 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     or status_code > 404 then
     io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
     io.stdout:flush()
-    os.execute("sleep 60")
+    if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") then
+        local lockfile = io.open("403_lock", "wb")
+        lockfile:close()
+        os.execute("sleep 15")
+        os.remove("403_lock")
+    else
+        os.execute("sleep 15")
+    end
     tries = tries + 1
     if tries >= 5 then
       io.stdout:write("\nI give up...\n")
@@ -281,13 +304,20 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     or string.match(url["host"], "counter%.website%-hit%-counters%.com")
     or string.match(url["url"], "^https?://".. item_value .."%.tumblr%.com/services")
     or string.match(url["url"], "%.[pjg][npi][ggf]$") then
-      io.stdout:write("Server returned " ..http_stat.statcode.." ("..err.."). Skipping.\n")
+      io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
       tries = 0
       return wget.actions.EXIT
     else
-      io.stdout:write("Server returned " ..http_stat.statcode.." ("..err.."). Sleeping.\n")
+      io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
       io.stdout:flush()
-      os.execute("sleep 1")
+      if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") and status_code == 403 then
+          local lockfile = io.open("403_lock", "wb")
+          lockfile:close()
+          os.execute("sleep 15")
+          os.remove("403_lock")
+      else
+          os.execute("sleep 1")
+      end
       tries = tries + 1
       if tries >= 5 then
         io.stdout:write("\nI give up...\n")
@@ -323,6 +353,13 @@ wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total
     end
   end
   file:close()
+  local media_file = io.open(item_dir..'/'..warc_file_base..'_media.txt', 'w')
+  if item_type == "tumblr-blog" then
+    for media_url, _ in pairs(discovered_media) do
+      media_file:write(media_url .. "\n")
+    end
+  end
+  media_file:close()
 end
 
 wget.callbacks.before_exit = function(exit_status, exit_status_string)
