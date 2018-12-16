@@ -214,6 +214,14 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   end
   if allowed(url, nil) then
     html = read_file(file)
+    
+    if string.match(html, "<title>Request denied%.</title>") then
+        local lockfile = io.open("403_lock", "wb")
+        lockfile:close()
+        os.execute("sleep 15")
+        os.remove("403_lock")
+    end
+    
     for newurl in string.gmatch(html, '([^"]+)') do
       checknewurl(newurl)
     end
