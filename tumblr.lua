@@ -262,7 +262,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     lockfile:close()
     -- unfortunately the exponential backoff is not shared globally...
     tries = math.max(4, tries + 1)
-    sleep_backoff
+    sleep_backoff()
   end
 
 
@@ -291,10 +291,10 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       local lockfile = io.open("/dev/shm/403_lock", "wb")
       lockfile:close()
       tries = math.max(4, tries + 1)
-      sleep_backoff
+      sleep_backoff()
       os.remove("/dev/shm/403_lock")
     else
-      sleep_backoff
+      sleep_backoff()
       tries = tries + 1
     end
     if tries >= 5 then
@@ -335,10 +335,10 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
         local lockfile = io.open("/dev/shm/403_lock", "wb")
         lockfile:close()
         tries = math.max(4, tries + 1)
-        sleep_backoff
+        sleep_backoff()
         os.remove("/dev/shm/403_lock")
       else
-        sleep_backoff
+        sleep_backoff()
         tries = tries + 1
       end
       if tries >= 5 then
