@@ -223,7 +223,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         local lockfile = io.open("/dev/shm/403_lock", "wb")
         lockfile:close()
         
-        tries = math.max(3, tries + 1)
+        tries = math.max(4, tries + 1)
         if tries >= 5 then
             abortgrab = true
         else        
@@ -261,7 +261,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   if lockfile then
     lockfile:close()
     -- unfortunately the exponential backoff is not shared globally...
-    tries = math.max(3, tries + 1)
+    tries = math.max(4, tries + 1)
     sleep_backoff
   end
 
@@ -290,7 +290,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") then
       local lockfile = io.open("/dev/shm/403_lock", "wb")
       lockfile:close()
-      tries = math.max(3, tries + 1)
+      tries = math.max(4, tries + 1)
       sleep_backoff
       os.remove("/dev/shm/403_lock")
     else
@@ -334,7 +334,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") and status_code == 403 then
         local lockfile = io.open("/dev/shm/403_lock", "wb")
         lockfile:close()
-        tries = math.max(3, tries + 1)
+        tries = math.max(4, tries + 1)
         sleep_backoff
         os.remove("/dev/shm/403_lock")
       else
