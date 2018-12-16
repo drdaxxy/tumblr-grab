@@ -77,7 +77,7 @@ allowed = function(url, parenturl)
   
   if string.match(url, concat) then
     if parenturl ~= nil then
-      if string.match(parenturl, concat) or string.match(url, "^https?://www%.tumblr%.com/") then
+      if string.match(parenturl, concat) or string.match(url, "^https?://www%.tumblr%.com/") or string.match(url, "^https?://" .. item_value .. "%.tumblr%.com/photoset_iframe/") then
         return true
       else
         return false
