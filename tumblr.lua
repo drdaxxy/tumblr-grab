@@ -220,7 +220,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     html = read_file(file)
     
     if string.match(html, "<title>Request denied%.</title>") then
-        local lockfile = io.open("403_lock", "wb")
+        local lockfile = io.open("/dev/shm/403_lock", "wb")
         lockfile:close()
         
         tries = math.max(3, tries + 1)
@@ -228,7 +228,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
             abortgrab = true
         else        
           sleep_backoff()
-          os.remove("403_lock")
+          os.remove("/dev/shm/403_lock")
         end
     end
     
@@ -257,7 +257,7 @@ end
 
 wget.callbacks.httploop_result = function(url, err, http_stat)
 
-  local lockfile = io.open("403_lock")
+  local lockfile = io.open("/dev/shm/403_lock")
   if lockfile then
     lockfile:close()
     -- unfortunately the exponential backoff is not shared globally...
@@ -288,11 +288,11 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
     io.stdout:flush()
     if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") then
-      local lockfile = io.open("403_lock", "wb")
+      local lockfile = io.open("/dev/shm/403_lock", "wb")
       lockfile:close()
       tries = math.max(3, tries + 1)
       sleep_backoff
-      os.remove("403_lock")
+      os.remove("/dev/shm/403_lock")
     else
       sleep_backoff
       tries = tries + 1
@@ -332,11 +332,11 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
       io.stdout:flush()
       if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") and status_code == 403 then
-        local lockfile = io.open("403_lock", "wb")
+        local lockfile = io.open("/dev/shm/403_lock", "wb")
         lockfile:close()
         tries = math.max(3, tries + 1)
         sleep_backoff
-        os.remove("403_lock")
+        os.remove("/dev/shm/403_lock")
       else
         sleep_backoff
         tries = tries + 1
