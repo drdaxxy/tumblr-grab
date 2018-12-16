@@ -28,6 +28,10 @@ for ignore in io.open("ignore-list", "r"):lines() do
   downloaded[ignore] = true
 end
 
+sleep_backoff = function()
+  os.execute("sleep " .. math.floor(math.pow(2, tries)))  -- math.pow returns a float, math.floor turns it into an int so the sleep cmd gets an int
+end
+
 read_file = function(file)
   if file then
     local f = assert(io.open(file))
@@ -218,8 +222,14 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     if string.match(html, "<title>Request denied%.</title>") then
         local lockfile = io.open("403_lock", "wb")
         lockfile:close()
-        os.execute("sleep 15")
-        os.remove("403_lock")
+        
+        tries = math.max(3, tries + 1)
+        if tries >= 5 then
+            abortgrab = true
+        else        
+          sleep_backoff()
+          os.remove("403_lock")
+        end
     end
     
     for newurl in string.gmatch(html, '([^"]+)') do
@@ -247,11 +257,13 @@ end
 
 wget.callbacks.httploop_result = function(url, err, http_stat)
 
-    local lockfile = io.open("403_lock")
-    if lockfile then
-      lockfile:close()
-      os.execute("sleep 15")
-    end
+  local lockfile = io.open("403_lock")
+  if lockfile then
+    lockfile:close()
+    -- unfortunately the exponential backoff is not shared globally...
+    tries = math.max(3, tries + 1)
+    sleep_backoff
+  end
 
 
   status_code = http_stat["statcode"]
@@ -276,14 +288,15 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
     io.stdout:flush()
     if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") then
-        local lockfile = io.open("403_lock", "wb")
-        lockfile:close()
-        os.execute("sleep 15")
-        os.remove("403_lock")
+      local lockfile = io.open("403_lock", "wb")
+      lockfile:close()
+      tries = math.max(3, tries + 1)
+      sleep_backoff
+      os.remove("403_lock")
     else
-        os.execute("sleep 15")
+      sleep_backoff
+      tries = tries + 1
     end
-    tries = tries + 1
     if tries >= 5 then
       io.stdout:write("\nI give up...\n")
       io.stdout:flush()
@@ -319,14 +332,15 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       io.stdout:write("Server returned "..http_stat.statcode.." ("..err.."). Sleeping.\n")
       io.stdout:flush()
       if string.match(url["host"], "^https?://" .. item_value .. "%.tumblr%.com") and status_code == 403 then
-          local lockfile = io.open("403_lock", "wb")
-          lockfile:close()
-          os.execute("sleep 15")
-          os.remove("403_lock")
+        local lockfile = io.open("403_lock", "wb")
+        lockfile:close()
+        tries = math.max(3, tries + 1)
+        sleep_backoff
+        os.remove("403_lock")
       else
-          os.execute("sleep 1")
+        sleep_backoff
+        tries = tries + 1
       end
-      tries = tries + 1
       if tries >= 5 then
         io.stdout:write("\nI give up...\n")
         io.stdout:flush()
